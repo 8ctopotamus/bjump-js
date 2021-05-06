@@ -4,6 +4,9 @@ import Phaser from '../lib/phaser.js'
 
 export default class Game extends Phaser.Scene 
 {
+  carrotsCollected = 0
+  /** @type {Phaser.GameObjects.Text} */
+  carrotsCollectedText
   /** @type {Phaser.Types.Input.Keyboard.CursorKeys} */
   cursors
   /** @type {Phaser.Physics.Arcade.Group} */
@@ -59,6 +62,19 @@ export default class Game extends Phaser.Scene
     this.carrots.get(240, 320, 'carrot')
     
     this.physics.add.collider(this.platforms, this.carrots)
+
+    this.physics.add.overlap(
+      this.player,
+      this.carrots,
+      this.handleCollectCarrot,
+      undefined,
+      this
+    )
+
+    const style = { color: '#000', fontSize: 24 }
+    this.carrotsCollectedText = this.add.text(240, 10, 'Carrots: 0', style)
+      .setScrollFactor(0)
+      .setOrigin(0.5, 0)
   }
 
   update() {
@@ -68,6 +84,8 @@ export default class Game extends Phaser.Scene
       if (platform.y >= scrollY + 700) {
         platform.y = scrollY - Phaser.Math.Between(50, 100)
         platform.body.updateFromGameObject()
+        // create a carrot above the platform being reused
+        this.addCarrotAbove(platform)
       }
     })
 
@@ -87,6 +105,12 @@ export default class Game extends Phaser.Scene
     }
 
     this.horizontalWrap(this.player)
+
+    // check for gameover
+    const bottomPlatform = this.findBottomMostPlatform()
+    if (this.player.y > bottomPlatform.y + 200) {
+      console.log('Game over')
+    }
   }
 
   /** 
@@ -100,5 +124,49 @@ export default class Game extends Phaser.Scene
     } else if (sprite.x > gameWidth + halfWidth) {
       sprite.x = -halfWidth
     }
+  }
+
+  /**
+   * @param {Phaser.GameObjects.Sprite} sprite
+   */
+  addCarrotAbove(sprite) {
+    const y = sprite.y - sprite.displayHeight
+    /** @type {Phaser.Phsyics.Arcade.Sprite} */
+    const carrot = this.carrots.get(sprite.x, y, 'carrot')
+    carrot.setActive(true)
+    carrot.setVisible(true)
+    this.add.existing(carrot)
+    // update the phsyics body size
+    carrot.body.setSize(carrot.width, carrot.height)
+    // make sure body is enabled in the physics world
+    this.physics.world.enable(carrot)
+    return carrot
+  }
+
+  /**
+   * @param {Phaser.Physics.Arcade.Sprite} player
+   * @param {Carrot} carrot
+   */
+  handleCollectCarrot(player, carrot) {
+    // hide from display
+    this.carrots.killAndHide(carrot)
+    // disable from physics world
+    this.physics.world.disableBody(carrot.body)
+    // increment score
+    this.carrotsCollected++
+    // update the text
+    this.carrotsCollectedText.text = `Carrots: ${this.carrotsCollected}`
+  }
+
+  findBottomMostPlatform() {
+    const platforms = this.platforms.getChildren()
+    let bottomPlatform = platforms[0]
+    for (let i = 1; i < platforms.length; ++i) {
+      const platform = platforms[i]
+      // discard any platforms that are above the current
+      if (platform.y < bottomPlatform.y) continue
+      bottomPlatform = platform
+    }
+    return bottomPlatform
   }
 }
