@@ -16,11 +16,17 @@ export default class Game extends Phaser.Scene
     super('game')
   }
 
+  init() {
+    this.carrotsCollected = 0
+  }
+
   preload() {
     this.load.image('background', 'assets/bg_layer1.png')
     this.load.image('platform', 'assets/ground_grass.png')
     this.load.image('bunny-stand', 'assets/bunny1_stand.png')
+    this.load.image('bunny-jump', 'assets/bunny1_jump.png')
     this.load.image('carrot', 'assets/carrot.png')
+    this.load.audio('jump', 'assets/sfx/phaseJump1.ogg')
     this.cursors = this.input.keyboard.createCursorKeys()
   }
 
@@ -93,6 +99,16 @@ export default class Game extends Phaser.Scene
     const touchingDown = this.player.body.touching.down
     if (touchingDown) {
       this.player.body.setVelocityY(-300)
+      // switch to jump texture
+      this.player.setTexture('bunny-jump')
+      // play jump sound
+      this.sound.play('jump')
+    }
+
+    // switch back to jump texture when falling
+    const vy = this.player.body.velocity.y
+    if (vy > 0 && this.player.texture.key !== 'bunny-stand') {
+      this.player.setTexture('bunny-stand')
     }
 
     // left/right
@@ -109,7 +125,7 @@ export default class Game extends Phaser.Scene
     // check for gameover
     const bottomPlatform = this.findBottomMostPlatform()
     if (this.player.y > bottomPlatform.y + 200) {
-      console.log('Game over')
+      this.scene.start('game-over')
     }
   }
 
